@@ -8,10 +8,10 @@ Many customers want to use MuleSoft as an API Gateway and get concerned when the
 Routing properties need to be defined with a key of "route.<x>", where <x> is an integer that defines the sequence in which the expression should be evaluated. The value for the property needs to be a string in the following format: "<regularExpression>@<implementationURL>", where <regularExpression> is the Regular expression that will be used to match against the requestedPath and <implementationURL> is the full URL to the implementation. 
 
 So, consider an example these properties configured:
-route.1=/test1.*@http://api-implementation-1.us-e1.cloudhub.io/test
-route.2=/test2.*@http://api-implementation-2.us-e1.cloudhub.io/test
+- route.1=/test1.\*@http://api-implementation-1.us-e1.cloudhub.io/test
+- route.2=/test2.\*@http://api-implementation-2.us-e1.cloudhub.io/test
 
-Anything sent to the proxy with the /test/* path will be forwarded to http://api-implementation-1.us-e1.cloudhub.io/test. Anything sent to the proxy with /test2 will be forwarded to the http://api-implementation-2.us-e1.cloudhub.io/test endpoint. 
+Anything sent to the proxy with the /test/\* path will be forwarded to http://api-implementation-1.us-e1.cloudhub.io/test. Anything sent to the proxy with /test2 will be forwarded to the http://api-implementation-2.us-e1.cloudhub.io/test endpoint. 
 
 I have only tested wildcard expressions so far, but I am leveraging the native regular expression processor in Java so other expressions should work. A couple of points about the project: 
 - I wrote a bootstrap Java static method to ingest the properties and make them available to the Mule application to be stored in ObjectStore. That logic is implemented in the init() method of the org.mule.Bootstrap class. Note that I do sort them since you cannot be guaranteed in what order you retrieve system properties keys. 
