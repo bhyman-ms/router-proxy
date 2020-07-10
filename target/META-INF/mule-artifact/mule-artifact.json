@@ -1,0 +1,35 @@
+{
+  "configs": [
+    "inbound-config.xml",
+    "outbound-config.xml",
+    "http-proxy.xml"
+  ],
+  "secureProperties": [
+    "inbound.keystore.password_16215239",
+    "inbound.keystore.keyPassword_16215239",
+    "inbound.truststore.password_16215239",
+    "outbound.keystore.password_16215239",
+    "outbound.keystore.keyPassword_16215239",
+    "outbound.truststore.password_16215239",
+    "anypoint.platform.client_secret_16215239"
+  ],
+  "redeploymentEnabled": true,
+  "name": "org.mule.examples:api-gateway-sample-http-proxy:2.0.0",
+  "minMuleVersion": "4.1.1",
+  "requiredProduct": "MULE_EE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedResources": [
+        "config.properties"
+      ],
+      "exportedPackages": [
+        "org.mule"
+      ]
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  }
+}

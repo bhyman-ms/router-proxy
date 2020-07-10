@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="routeList" format="java">
+      <types:shape format="raml"><![CDATA[#%RAML 1.0 DataType
+type: object
+properties:
+    path:
+        type: string
+    url:
+        type: string
+]]></types:shape>
+    </types:type>
+    <types:type name="object" format="java">
+      <types:shape format="raml"><![CDATA[#%RAML 1.0 DataType
+type: string]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#5a7e9e2e-51f5-4554-babe-508c7b01da0f">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:variables>
+          <types:variable name="routes" type="routeList[]"/>
+        </types:variables>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#06d6f980-6fdb-4ccc-8898-60c6f75ebc1a">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:variables>
+          <types:variable name="routes" type="routeList[]"/>
+        </types:variables>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

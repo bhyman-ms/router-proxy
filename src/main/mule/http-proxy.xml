@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:java="http://www.mulesoft.org/schema/mule/java"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:proxy="http://www.mulesoft.org/schema/mule/proxy" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+        http://www.mulesoft.org/schema/mule/proxy http://www.mulesoft.org/schema/mule/proxy/current/mule-proxy.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+
+    <configuration-properties file="config.properties"/>
+
+    <configuration defaultResponseTimeout="${proxy.responseTimeout}"/>
+
+    <proxy:config name="proxy-config"/>
+
+    <os:object-store name="route-store" doc:name="Object store" doc:id="370b5617-3a87-47e7-af23-b768657f6e54" persistent="false" />
+	<flow name="proxy">
+        <http:listener config-ref="http-listener-config" path="${proxy.path}" responseStreamingMode="AUTO">
+            <http:response statusCode="#[attributes.statusCode]" reasonPhrase="#[attributes.reasonPhrase]">
+                <http:headers>#[if (vars.proxyResponseHeaders?) vars.proxyResponseHeaders else {}]</http:headers>
+            </http:response>
+        </http:listener>
+
+        <proxy:request-headers config-ref="proxy-config" target="proxyRequestHeaders"/>
+
+        <os:retrieve doc:name="Retrieve routes from ObjectStore" doc:id="ed798b1a-5d10-41c1-a5c9-1983c16a3598" key="routes" objectStore="route-store" target="routes">
+			<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="Select route matches" doc:id="06d6f980-6fdb-4ccc-8898-60c6f75ebc1a" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="matchedRoutes" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.routes filter ((value, index) ->  
+    (matches(message.attributes.relativePath, value.path)))  ]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<try doc:name="Try" doc:id="0ee517fc-22d5-43fc-b557-8d9ed8ec77d2" >
+			<validation:is-not-empty-collection doc:name="Is not empty collection" doc:id="1051be86-e807-4c83-9e73-85ab5de23891" message="No routes found" values="#[vars.matchedRoutes]"/>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3cd484ab-e34c-41af-8b6e-542419c2dc10" >
+					<ee:transform doc:name="Set error message" doc:id="9741bfc6-933b-44df-b4e4-80518ef543bc" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Router unable to match path",
+	"status": "404"
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA['404']]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<http:request config-ref="http-request-config" url="#[vars.matchedRoutes[0].url]" method="#[attributes.method]" doc:name="Send request to implementation">
+            <http:headers><![CDATA[#[vars.proxyRequestHeaders]]]></http:headers>
+            <http:uri-params><![CDATA[#[attributes.uriParams]]]></http:uri-params>
+            <http:query-params><![CDATA[#[attributes.queryParams]]]></http:query-params>
+            <http:response-validator>
+                <http:success-status-code-validator values="0..599"/>
+            </http:response-validator>
+        </http:request>
+
+        <proxy:response-headers config-ref="proxy-config" target="proxyResponseHeaders"/>
+
+        <error-handler>
+            <on-error-continue type="HTTP:TIMEOUT" logException="false">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-attributes>
+                            {
+                                statusCode: 504
+                            }
+                        </ee:set-attributes>
+                    </ee:message>
+                </ee:transform>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+        <flow name="singleRunAtStartupFlow" doc:id="dc9de772-1e30-4c2c-a3fa-f4180917d318" >
+        <scheduler doc:name="Scheduler" doc:id="65d2e235-b3ae-4258-82c3-dde5a6c6b389" >
+            <scheduling-strategy >
+                <fixed-frequency frequency="10000" timeUnit="DAYS"/>
+            </scheduling-strategy>
+        </scheduler>
+		<java:invoke-static doc:name="Assemble route list from system properties" doc:id="2d26c7aa-66fa-4f5a-a9b7-ec56866e60fd" class="org.mule.Bootstrap" method="init()"/>
+		<os:store doc:name="Save route list in objectstore" doc:id="de82041a-2b23-4e9c-b9ee-26c75539eaf1" key="routes" objectStore="route-store">
+		</os:store>
+		<logger level="INFO" doc:name="Logger" doc:id="b784cfb4-4896-43b2-b3c0-3b897ad0dc08" message='#["Proxy routes ingested: " ++ (sizeOf(payload) as String) ++ " routes found"]'/>
+    </flow>
+</mule>
